@@ -93,3 +93,52 @@ Be aggressive — when in doubt, mark as SUSPICIOUS or PHISHING.
         if 'response' in locals() and hasattr(response, 'text'):
             print(f"Groq says: {response.text}")
         return FALLBACK_RESPONSE
+    
+
+
+def analyze_url_payload(url_text: str) -> dict:
+    prompt = f"""
+    You are an elite cybersecurity AI. Analyze this URL for phishing, malware, typosquatting, or scams: "{url_text}"
+    
+    Look for:
+    - Suspicious subdomains or hidden brand names
+    - Strange top-level domains
+    - Obfuscated paths
+    
+    Return ONLY a valid JSON object with exactly these keys:
+    - "verdict": strictly "SAFE", "SUSPICIOUS", or "DANGEROUS"
+    - "threat_score": integer from 0 to 100
+    - "findings": list of 2 or 3 strings explaining the exact structural threats found in the URL
+    """
+
+    try:
+        response = requests.post(
+            GROQ_URL,
+            headers={
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "llama-3.1-8b-instant",
+                "messages": [{"role": "user", "content": prompt}],
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1
+            },
+            timeout=30
+        )
+
+        if response.status_code != 200:
+            return {"verdict": "SUSPICIOUS", "threat_score": 50, "findings": ["AI unreachable"]}
+
+        data = response.json()
+        raw_text = data['choices'][0]['message']['content']
+        result = json.loads(raw_text)
+
+        return {
+            "verdict": result.get("verdict", "SUSPICIOUS"),
+            "threat_score": result.get("threat_score", 50),
+            "findings": result.get("findings", ["Analysis complete."])
+        }
+
+    except Exception:
+        return {"verdict": "SUSPICIOUS", "threat_score": 50, "findings": ["Error analyzing URL layout"]}
