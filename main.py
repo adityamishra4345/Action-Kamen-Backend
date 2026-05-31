@@ -104,8 +104,9 @@ async def inspect_qr(request: InspectRequest):
     brands = ["paypal", "amazon", "google", "apple", "microsoft", "netflix"]
     
     for brand in brands:
-        if brand in domain:
-            if domain != f"{brand}.com":
+        clean_domain = domain.replace("www.", "")
+        if brand in clean_domain:
+            if clean_domain != f"{brand}.com":
                 typosquat_match = brand
                 threats.append(f"Possible typosquatting targeting {brand}")
                 verdict = "DANGEROUS"
